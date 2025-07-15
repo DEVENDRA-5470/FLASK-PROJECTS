@@ -10,5 +10,6 @@ CREATE TABLE IF NOT EXISTS accounts (
     email VARCHAR(100),
     mobile VARCHAR(20),
     acc_number VARCHAR(20),
-    balance FLOAT
+    balance FLOAT,
+    created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
