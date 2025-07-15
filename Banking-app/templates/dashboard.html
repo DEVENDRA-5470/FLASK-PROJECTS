@@ -11,17 +11,18 @@
       </tr>
     </thead>
     <tbody>
-      {% for acc in accounts %}
-      <tr>
-        <td>{{ acc[0] }}</td>
-        <td>{{ acc[1] }}</td>
-        <td>{{ acc[2] }}</td>
-        <td>{{ acc[3] }}</td>
-        <td>{{ acc[4] }}</td>
-        <td>₹ {{ acc[5] }}</td>
-        <td>{{ acc[6] }}</td>
-      </tr>
-      {% endfor %}
+{% for acc in accounts %}
+<tr>
+  <td>{{ acc['id'] }}</td>
+  <td>{{ acc['name'] }}</td>
+  <td>{{ acc['email'] }}</td>
+  <td>{{ acc['mobile'] }}</td>
+  <td>{{ acc['acc_number'] }}</td>
+  <td>₹ {{ acc['balance'] }}</td>
+  <td>{{ acc['created'] }}</td>
+</tr>
+{% endfor %}
+
     </tbody>
   </table>
 {% endblock %}
