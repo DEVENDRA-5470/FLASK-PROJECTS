@@ -1,0 +1,40 @@
+- name: Deploy Dockerized Flask App
+  hosts: banking
+  become: true
+
+  vars:
+    env_file_path: /home/ubuntu/BANKING-APP/.env
+
+  tasks:
+    - name: Install Docker & Git
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      loop:
+        - docker.io
+        - git
+
+    - name: Clone Flask App
+      git:
+        repo: https://github.com/DEVENDRA-5470/FLASK-PROJECTS.git
+        dest: /home/ubuntu/BANKING-APP
+        version: main
+
+    - name: Replace <RDS_ENDPOINT> in .env.template
+      replace:
+        path: /home/ubuntu/BANKING-APP/.env.template
+        regexp: "<RDS_ENDPOINT>"
+        replace: "{{ lookup('env', 'RDS_ENDPOINT') }}"
+      environment:
+        RDS_ENDPOINT: "{{ hostvars[inventory_hostname]['rds_endpoint'] | default('') }}"
+
+    - name: Copy .env file
+      copy:
+        src: /home/ubuntu/BANKING-APP/.env.template
+        dest: "{{ env_file_path }}"
+
+    - name: Run Docker Compose
+      shell: |
+        cd /home/ubuntu/BANKING-APP
+        docker compose up -d
