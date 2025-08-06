@@ -10,13 +10,20 @@
   tasks:
     - name: Install required packages
       apt:
-        name: ['docker.io', 'git', 'curl', 'python3-pip', 'mysql-client', 'netcat']
+        name:
+          - docker.io
+          - git
+          - curl
+          - python3-pip
+          - mysql-client
+          - netcat
         state: present
         update_cache: yes
 
     - name: Install docker-compose
       shell: |
-        curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" \
+          -o /usr/local/bin/docker-compose
         chmod +x /usr/local/bin/docker-compose
         ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
       args:
@@ -36,7 +43,7 @@
       wait_for:
         path: "{{ env_template }}"
         state: present
-RDS_ENDPOIN        timeout: 30
+        timeout: 30
 
     - name: Inject RDS endpoint into .env.template
       replace:
