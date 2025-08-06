@@ -1,40 +1,82 @@
-- name: Deploy Dockerized Flask App
-  hosts: banking
-  become: true
+- name: Deploy Flask App with Docker
+  hosts: flask
+  become: yes
 
   vars:
-    env_file_path: /home/ubuntu/BANKING-APP/.env
+    app_dir: /home/ubuntu/BANKING-APP/Banking-app
+    env_template: "{{ app_dir }}/.env.template"
+    env_file: "{{ app_dir }}/.env"
 
   tasks:
-    - name: Install Docker & Git
+    - name: Install required packages
       apt:
-        name: "{{ item }}"
+        name: ['docker.io', 'git', 'curl', 'python3-pip', 'mysql-client', 'netcat']
         state: present
         update_cache: yes
-      loop:
-        - docker.io
-        - git
 
-    - name: Clone Flask App
+    - name: Install docker-compose
+      shell: |
+        curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        chmod +x /usr/local/bin/docker-compose
+        ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+      args:
+        creates: /usr/local/bin/docker-compose
+
+    - name: Install cryptography (Python dependency for python-decouple)
+      pip:
+        name: cryptography
+
+    - name: Clone Flask App repo
       git:
         repo: https://github.com/DEVENDRA-5470/FLASK-PROJECTS.git
         dest: /home/ubuntu/BANKING-APP
-        version: main
+        force: yes
 
-    - name: Replace <RDS_ENDPOINT> in .env.template
+    - name: Wait for .env.template to exist
+      wait_for:
+        path: "{{ env_template }}"
+        state: present
+RDS_ENDPOIN        timeout: 30
+
+    - name: Inject RDS endpoint into .env.template
       replace:
-        path: /home/ubuntu/BANKING-APP/.env.template
-        regexp: "<RDS_ENDPOINT>"
-        replace: "{{ lookup('env', 'RDS_ENDPOINT') }}"
-      environment:
-        RDS_ENDPOINT: "{{ hostvars[inventory_hostname]['rds_endpoint'] | default('') }}"
+        path: "{{ env_template }}"
+        regexp: "<T>"
+        replace: "{{ rds_endpoint }}"
 
-    - name: Copy .env file
+    - name: Copy .env from template
       copy:
-        src: /home/ubuntu/BANKING-APP/.env.template
-        dest: "{{ env_file_path }}"
+        src: "{{ env_template }}"
+        dest: "{{ env_file }}"
+        remote_src: yes
 
-    - name: Run Docker Compose
+    - name: Show .env content for debug
+      shell: cat "{{ env_file }}"
+      register: env_contents
+
+    - name: Print .env content
+      debug:
+        msg: "{{ env_contents.stdout }}"
+
+    - name: Docker down (cleanup)
+      shell: docker-compose down --volumes --remove-orphans || true
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Docker up
+      shell: docker-compose up -d --build
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Wait for RDS to become available
       shell: |
-        cd /home/ubuntu/BANKING-APP
-        docker compose up -d
+        for i in {1..30}; do
+          nc -z {{ rds_endpoint }} 3306 && echo "✅ RDS is ready" && exit 0
+          echo "⏳ Waiting for RDS to be available..."
+          sleep 10
+        done
+        echo "❌ RDS not available after waiting." && exit 1
+
+    - name: Import init.sql to RDS
+      shell: |
+        mysql -h {{ rds_endpoint }} -u admin -ppassword123 banking_db < {{ app_dir }}/init.sql
