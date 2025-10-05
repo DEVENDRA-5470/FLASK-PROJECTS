@@ -49,7 +49,7 @@
       replace:
         path: "{{ env_template }}"
         regexp: "<T>"
-        replace: "{{ rds_endpoint }}"
+        replace: "{{ rds_endpoint.split(':')[0] }}"
 
     - name: Copy .env from template
       copy:
